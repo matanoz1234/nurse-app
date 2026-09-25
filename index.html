@@ -42,6 +42,15 @@ button.danger{background:var(--danger)}
 .today-list{margin-top:10px;font-size:13px;line-height:1.8;color:var(--muted)}
 .today-item{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 8px;margin:3px;cursor:pointer;color:var(--ink)}
 @media(max-width:650px){.today-summary{grid-template-columns:1fr 1fr}}
+
+.performance-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px #0000000d}
+.performance-panel h2{margin:0 0 10px;font-size:18px}
+.performance-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.performance-box{border-radius:14px;padding:10px;text-align:center;border:1px solid var(--line);background:#fafafa}
+.performance-box b{display:block;font-size:22px;margin-bottom:2px}.performance-box span{font-size:12px;color:var(--muted)}
+.performance-box.highlight{background:#fff8df;border-color:#e7c35b}
+.performance-note{margin-top:9px;font-size:12px;color:var(--muted);line-height:1.6}
+@media(max-width:650px){.performance-grid{grid-template-columns:1fr 1fr}}
 .empty{color:var(--muted);font-size:13px}
 dialog{border:0;border-radius:18px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 20px 60px #0005}
 dialog::backdrop{background:#0007}
@@ -80,11 +89,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v18.webmanifest?v=18">
+<link rel="manifest" href="manifest-v19.webmanifest?v=19">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v18-192.png?v=18">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v18-512.png?v=18">
-<link rel="apple-touch-icon" href="queenbee-v18-192.png?v=18">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v19-192.png?v=19">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v19-512.png?v=19">
+<link rel="apple-touch-icon" href="queenbee-v19-192.png?v=19">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -101,7 +110,7 @@ body.locked header,body.locked .grid,body.locked footer{
 </div>
 <header>
   <h1>🐝 מעקב אומנות – גידול מלכות</h1>
-  <p>25 אומנות · משימות היום · היסטוריה · עריכה · סריקת QR</p>
+  <p>25 אומנות · משימות היום · סיכום ביצועים · היסטוריה · עריכה · סריקת QR</p>
 </header>
 
 <main>
@@ -114,6 +123,18 @@ body.locked header,body.locked .grid,body.locked footer{
       <div class="today-box active" id="todayActiveBox"><b id="todayActiveCount">0</b><span>אומנות פעילות</span></div>
     </div>
     <div id="todayList" class="today-list"></div>
+  </section>
+  <section class="performance-panel">
+    <h2>📊 סיכום ביצועים</h2>
+    <div class="performance-grid">
+      <div class="performance-box"><b id="perfCompleted">0</b><span>מחזורים שהסתיימו</span></div>
+      <div class="performance-box highlight"><b id="perfAverage">—</b><span>אחוז הצלחה ממוצע</span></div>
+      <div class="performance-box"><b id="perfMounted">0</b><span>גביעים שהורכבו</span></div>
+      <div class="performance-box"><b id="perfFinal">0</b><span>מלכות שיצאו בפועל</span></div>
+      <div class="performance-box"><b id="perfBestNurse">—</b><span>אומנת עם ממוצע ההצלחה הגבוה</span></div>
+      <div class="performance-box"><b id="perfBestMother">—</b><span>מלכת אם עם ממוצע ההצלחה הגבוה</span></div>
+    </div>
+    <div class="performance-note">החישוב מתבסס רק על מחזורים שבהם הוזן מספר הגביעים שיצאו בפועל.</div>
   </section>
   <div class="toolbar">
     <input id="search" placeholder="חיפוש אומנת, למשל א-7">
@@ -245,7 +266,50 @@ function renderToday(){
   if(t.late.length)parts.push('<b>באיחור:</b> '+t.late.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
   document.getElementById('todayList').innerHTML=parts.length?parts.join('<br>'):'אין משימות מיוחדות להיום.';
 }
-function render(){renderToday();const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
+function getPerformanceSummary(){
+  let completed=0,totalMounted=0,totalFinal=0;
+  const nurses={},mothers={};
+  Object.entries(data).forEach(([id,arr])=>{
+    (arr||[]).forEach(x=>{
+      const hasFinal=x && x.cupsFinal!=='' && x.cupsFinal!==null && x.cupsFinal!==undefined;
+      const mounted=Number(x&&x.cupsMounted), finalCount=Number(x&&x.cupsFinal);
+      if(!hasFinal || !Number.isFinite(mounted) || mounted<=0 || !Number.isFinite(finalCount)) return;
+      const rate=(finalCount/mounted)*100;
+      completed++; totalMounted+=mounted; totalFinal+=finalCount;
+      if(!nurses[id]) nurses[id]={sum:0,count:0};
+      nurses[id].sum+=rate; nurses[id].count++;
+      const mother=(x.mother||'').trim();
+      if(mother){
+        if(!mothers[mother]) mothers[mother]={sum:0,count:0};
+        mothers[mother].sum+=rate; mothers[mother].count++;
+      }
+    });
+  });
+  const pickBest=obj=>{
+    let bestName='—',bestAvg=-1,bestCount=0;
+    Object.entries(obj).forEach(([name,v])=>{
+      const avg=v.sum/v.count;
+      if(avg>bestAvg){bestAvg=avg;bestName=name;bestCount=v.count;}
+    });
+    return bestAvg<0?{name:'—',avg:null,count:0}:{name:bestName,avg:bestAvg,count:bestCount};
+  };
+  return {
+    completed,totalMounted,totalFinal,
+    average:totalMounted>0?(totalFinal/totalMounted)*100:null,
+    bestNurse:pickBest(nurses),
+    bestMother:pickBest(mothers)
+  };
+}
+function renderPerformance(){
+  const p=getPerformanceSummary();
+  document.getElementById('perfCompleted').textContent=p.completed;
+  document.getElementById('perfAverage').textContent=p.average==null?'—':p.average.toFixed(1)+'%';
+  document.getElementById('perfMounted').textContent=p.totalMounted;
+  document.getElementById('perfFinal').textContent=p.totalFinal;
+  document.getElementById('perfBestNurse').textContent=p.bestNurse.avg==null?'—':p.bestNurse.name+' · '+p.bestNurse.avg.toFixed(1)+'%';
+  document.getElementById('perfBestMother').textContent=p.bestMother.avg==null?'—':p.bestMother.name+' · '+p.bestMother.avg.toFixed(1)+'%';
+}
+function render(){renderToday();renderPerformance();const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
 function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
 function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
 function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
