@@ -97,11 +97,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v21.webmanifest?v=21">
+<link rel="manifest" href="manifest-v22.webmanifest?v=22">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v21-192.png?v=21">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v21-512.png?v=21">
-<link rel="apple-touch-icon" href="queenbee-v21-192.png?v=21">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v22-192.png?v=22">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v22-512.png?v=22">
+<link rel="apple-touch-icon" href="queenbee-v22-192.png?v=22">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -123,7 +123,7 @@ body.locked header,body.locked .grid,body.locked footer{
 
 <main>
   <section class="today-panel">
-    <h2>📅 תמונת מצב להיום</h2>
+    <h2>📋 תמונת מצב להיום</h2>
     <div class="today-summary">
       <div class="today-box day7"><b id="todayDay7Count">0</b><span>בדיקת יום 7 היום</span></div>
       <div class="today-box out"><b id="todayOutCount">0</b><span>להוציא היום</span></div>
@@ -262,17 +262,21 @@ function daysUntil(dateStr){
 function getTodayTasks(){
   const now=new Date();
   const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  const day7=[],out=[],late=[],active=[];
+  const tomorrow=addDaysISO(today,1);
+  const day7=[],out=[],late=[],active=[],day7Tomorrow=[],outTomorrow=[];
   Object.keys(data).forEach(id=>{
     const arr=data[id]||[]; if(!arr.length)return;
     const x=arr[arr.length-1];
     const st=cycleStatus(x);
+    const hasFinal=x && x.cupsFinal!=='' && x.cupsFinal!==null && x.cupsFinal!==undefined;
     if(st.text==='פעילה') active.push({id,x});
     if(st.text==='להוציא היום') out.push({id,x});
     if(st.text==='באיחור') late.push({id,x});
     if(x.dateIn && addDaysISO(x.dateIn,7)===today && (x.cupsDay7===''||x.cupsDay7==null)) day7.push({id,x});
+    if(!hasFinal && x.dateIn && addDaysISO(x.dateIn,7)===tomorrow && (x.cupsDay7===''||x.cupsDay7==null)) day7Tomorrow.push({id,x});
+    if(!hasFinal && x.dateOut===tomorrow) outTomorrow.push({id,x});
   });
-  return {day7,out,late,active};
+  return {day7,out,late,active,day7Tomorrow,outTomorrow};
 }
 function taskPills(items){
   return items.map(({id})=>`<span class="today-item" onclick="openNurse('${id}')">${id}</span>`).join('');
@@ -285,9 +289,11 @@ function renderToday(){
   document.getElementById('todayActiveCount').textContent=t.active.length;
 
   const actionParts=[];
-  if(t.day7.length) actionParts.push(`<div><b>בדיקת יום 7:</b> ${taskPills(t.day7)}</div>`);
+  if(t.day7.length) actionParts.push(`<div><b>בדיקת יום 7 היום:</b> ${taskPills(t.day7)}</div>`);
   if(t.out.length) actionParts.push(`<div><b>להוציא היום:</b> ${taskPills(t.out)}</div>`);
   if(t.late.length) actionParts.push(`<div><b>באיחור:</b> ${taskPills(t.late)}</div>`);
+  if(t.day7Tomorrow.length) actionParts.push(`<div><b>מחר – בדיקת יום 7:</b> ${taskPills(t.day7Tomorrow)}</div>`);
+  if(t.outTomorrow.length) actionParts.push(`<div><b>מחר – להוציא:</b> ${taskPills(t.outTomorrow)}</div>`);
 
   const actionsHtml = actionParts.length
     ? actionParts.join('')
