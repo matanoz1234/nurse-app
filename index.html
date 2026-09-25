@@ -24,8 +24,14 @@ button.danger{background:var(--danger)}
 .pill{display:inline-block;background:#fff3cf;border:1px solid #efd995;border-radius:999px;padding:3px 8px;font-size:12px;margin-top:6px}
 .status-pill{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;margin-top:6px;margin-inline-start:5px}
 .status-active{background:#e9f7ef;border:1px solid #9fd5af;color:#236b38}
-.status-due{background:#fff1e8;border:1px solid #efb188;color:#9b4519}
+.status-today{background:#fff3cd;border:1px solid #e0b74a;color:#7a5600}
+.status-late{background:#fde8e8;border:1px solid #e5a3a3;color:#a12626}
 .status-done{background:#eef1f4;border:1px solid #c5cbd1;color:#4b5563}
+.card.card-active{border:2px solid #9fd5af;background:#f7fff9}
+.card.card-today{border:2px solid #e0b74a;background:#fffaf0}
+.card.card-late{border:2px solid #e5a3a3;background:#fff7f7}
+.card.card-done{border:2px solid #c5cbd1;background:#f8f9fa}
+.card.card-empty{opacity:.9}
 .empty{color:var(--muted);font-size:13px}
 dialog{border:0;border-radius:18px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 20px 60px #0005}
 dialog::backdrop{background:#0007}
@@ -64,11 +70,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v16.webmanifest?v=16">
+<link rel="manifest" href="manifest-v17.webmanifest?v=17">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v16-192.png?v=16">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v16-512.png?v=16">
-<link rel="apple-touch-icon" href="queenbee-v16-192.png?v=16">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v17-192.png?v=17">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v17-512.png?v=17">
+<link rel="apple-touch-icon" href="queenbee-v17-192.png?v=17">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -183,15 +189,16 @@ function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt
 function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`}
 function cycleStatus(x){
   const hasFinal=x && x.cupsFinal!=='' && x.cupsFinal!==null && x.cupsFinal!==undefined;
-  if(hasFinal)return {text:'הסתיימה',cls:'status-done'};
-  if(!x || !x.dateOut)return {text:'פעילה',cls:'status-active'};
+  if(hasFinal)return {text:'הסתיימה',cls:'status-done',cardCls:'card-done'};
+  if(!x || !x.dateOut)return {text:'פעילה',cls:'status-active',cardCls:'card-active'};
   const now=new Date();
   const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
-  if(x.dateOut<=today)return {text:'להוציא היום / באיחור',cls:'status-due'};
-  return {text:'פעילה',cls:'status-active'};
+  if(x.dateOut===today)return {text:'להוציא היום',cls:'status-today',cardCls:'card-today'};
+  if(x.dateOut<today)return {text:'באיחור',cls:'status-late',cardCls:'card-late'};
+  return {text:'פעילה',cls:'status-active',cardCls:'card-active'};
 }
 function statusHtml(x){const st=cycleStatus(x);return `<span class="status-pill ${st.cls}">${st.text}</span>`;}
-function render(){const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');card.className='card';card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
+function render(){const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
 function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
 function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
 function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
