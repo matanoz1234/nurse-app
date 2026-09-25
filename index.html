@@ -59,6 +59,14 @@ button.danger{background:var(--danger)}
 .performance-box.highlight{background:#fff8df;border-color:#e7c35b}
 .performance-note{margin-top:9px;font-size:12px;color:var(--muted);line-height:1.6}
 @media(max-width:650px){.performance-grid{grid-template-columns:1fr 1fr}}
+
+.cloud-panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:11px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 2px 8px #0000000d}
+.cloud-panel b{font-size:15px}.cloud-state{font-size:13px;font-weight:800;border-radius:999px;padding:6px 10px;white-space:nowrap}
+.cloud-ok{background:#eaf7ee;color:#246a37;border:1px solid #aad4b5}.cloud-pending{background:#fff7df;color:#8b6500;border:1px solid #e5c45f}.cloud-error{background:#fff0f0;color:#a92d2d;border:1px solid #e2aaaa}.cloud-unknown{background:#f3f3f3;color:#666;border:1px solid #d3d3d3}
+.sync-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;border-radius:999px;padding:4px 7px;margin-top:6px}
+.sync-badge.synced{background:#eaf7ee;color:#246a37}.sync-badge.pending{background:#fff7df;color:#8b6500}.sync-badge.error{background:#fff0f0;color:#a92d2d}.sync-badge.unknown{background:#f0f0f0;color:#666}
+.sync-retry{border:0;background:transparent;color:#a92d2d;text-decoration:underline;padding:0 4px;font-size:11px;cursor:pointer}
+
 .empty{color:var(--muted);font-size:13px}
 dialog{border:0;border-radius:18px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 20px 60px #0005}
 dialog::backdrop{background:#0007}
@@ -97,11 +105,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v22.webmanifest?v=22">
+<link rel="manifest" href="manifest-v23.webmanifest?v=23">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v22-192.png?v=22">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v22-512.png?v=22">
-<link rel="apple-touch-icon" href="queenbee-v22-192.png?v=22">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v23-192.png?v=23">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v23-512.png?v=23">
+<link rel="apple-touch-icon" href="queenbee-v23-192.png?v=23">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -122,6 +130,10 @@ body.locked header,body.locked .grid,body.locked footer{
 </header>
 
 <main>
+  <section class="cloud-panel">
+    <b>☁️ מצב סנכרון לענן</b>
+    <span id="cloudState" class="cloud-state cloud-unknown">לא נבדק עדיין</span>
+  </section>
   <section class="today-panel">
     <h2>📋 תמונת מצב להיום</h2>
     <div class="today-summary">
@@ -215,7 +227,7 @@ body.locked header,body.locked .grid,body.locked footer{
   </div>
 </dialog>
 
-<footer>הנתונים נשמרים במכשיר ובמקביל נשלחים לגיבוי ב-Google Sheets.</footer>
+<footer>הנתונים נשמרים במכשיר. ליד כל מחזור מופיע האם השמירה ב-Google Sheets אומתה בפועל.</footer>
 
 <script>
 const nurseDialog=document.getElementById('nurseDialog'),formDialog=document.getElementById('formDialog'),scanDialog=document.getElementById('scanDialog');
@@ -250,6 +262,72 @@ function cycleStatus(x){
   return {text:'פעילה',cls:'status-active',cardCls:'card-active'};
 }
 function statusHtml(x){const st=cycleStatus(x);return `<span class="status-pill ${st.cls}">${st.text}</span>`;}
+function syncBadgeHtml(x){
+  const s=x&&x.syncStatus;
+  if(s==='synced')return `<span class="sync-badge synced">✅ נשמר בענן</span>`;
+  if(s==='pending')return `<span class="sync-badge pending">⏳ ממתין לאימות</span>`;
+  if(s==='error')return `<span class="sync-badge error">⚠️ לא סונכרן</span>`;
+  return `<span class="sync-badge unknown">☁️ טרם אומת</span>`;
+}
+function updateCloudState(){
+  const all=Object.values(data).flat();
+  const el=document.getElementById('cloudState');
+  if(!el)return;
+  if(all.some(x=>x.syncStatus==='error')){el.className='cloud-state cloud-error';el.textContent='⚠️ יש רשומה שלא סונכרנה';return;}
+  if(all.some(x=>x.syncStatus==='pending')){el.className='cloud-state cloud-pending';el.textContent='⏳ ממתין לאימות';return;}
+  if(all.some(x=>x.syncStatus==='synced')){el.className='cloud-state cloud-ok';el.textContent='✅ הסנכרון האחרון אומת';return;}
+  el.className='cloud-state cloud-unknown';el.textContent='לא נבדק עדיין';
+}
+function makeSyncToken(){return 'sync-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)}
+function findLocalRecord(recordId){
+  for(const id of Object.keys(data)){
+    const idx=data[id].findIndex(x=>x.recordId===recordId);
+    if(idx>=0)return {id,idx,rec:data[id][idx]};
+  }
+  return null;
+}
+function setLocalSync(recordId,status){
+  const found=findLocalRecord(recordId);if(!found)return;
+  found.rec.syncStatus=status;
+  if(status==='synced')found.rec.syncAt=new Date().toISOString();
+  save();render();
+  if(currentNurse===found.id && nurseDialog.open)renderHistory();
+}
+function jsonpCheck(recordId,syncToken,timeoutMs=7000){
+  return new Promise((resolve,reject)=>{
+    const cb='cloudCheck_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);
+    const script=document.createElement('script');
+    let done=false;
+    const cleanup=()=>{if(done)return;done=true;delete window[cb];script.remove();clearTimeout(timer)};
+    window[cb]=(result)=>{cleanup();resolve(result)};
+    script.onerror=()=>{cleanup();reject(new Error('check failed'))};
+    const timer=setTimeout(()=>{cleanup();reject(new Error('timeout'))},timeoutMs);
+    script.src=CLOUD_URL+'?action=check&recordId='+encodeURIComponent(recordId)+'&syncToken='+encodeURIComponent(syncToken)+'&callback='+encodeURIComponent(cb)+'&_='+Date.now();
+    document.head.appendChild(script);
+  });
+}
+async function verifySync(recordId,syncToken){
+  for(let attempt=0;attempt<4;attempt++){
+    await new Promise(r=>setTimeout(r,1000+attempt*800));
+    try{
+      const result=await jsonpCheck(recordId,syncToken);
+      if(result&&result.ok&&result.found&&result.tokenMatch){setLocalSync(recordId,'synced');return true;}
+    }catch(e){}
+  }
+  setLocalSync(recordId,'error');return false;
+}
+async function sendRecordToCloud(id,rec,action){
+  rec.syncToken=makeSyncToken();rec.syncStatus='pending';save();render();
+  const payload={action,recordId:rec.recordId,nurse:id,mother:rec.mother,dateIn:rec.dateIn,cupsMounted:rec.cupsMounted,cupsDay7:rec.cupsDay7,dateOut:rec.dateOut,cupsFinal:rec.cupsFinal,successPercent:rec.successPercent,notes:rec.notes,location:rec.location,syncToken:rec.syncToken};
+  try{
+    await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),mode:'no-cors'});
+    verifySync(rec.recordId,rec.syncToken);
+  }catch(e){setLocalSync(rec.recordId,'error')}
+}
+function retrySync(recordId){
+  const found=findLocalRecord(recordId);if(!found)return;
+  sendRecordToCloud(found.id,found.rec,'update');
+}
 function addDaysISO(dateStr,days){if(!dateStr)return'';const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
 function daysUntil(dateStr){
   if(!dateStr)return null;
@@ -367,7 +445,7 @@ function updateMotherFilterOptions(){
   sel.innerHTML='<option value="">👑 כל מלכות האם</option>'+names.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
   if(names.includes(current))sel.value=current;
 }
-function render(){
+function render(){updateCloudState();
   renderToday();
   renderPerformance();
   updateMotherFilterOptions();
@@ -386,7 +464,7 @@ function render(){
       const card=document.createElement('div');
       const st=last?cycleStatus(last):null;
       card.className='card '+(st?st.cardCls:'card-empty');
-      card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}${mother&&arr.length>relevant.length?`<div class="stat" style="margin-top:6px">מוצג המחזור האחרון של מלכת האם שנבחרה</div>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);
+      card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}${syncBadgeHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}${mother&&arr.length>relevant.length?`<div class="stat" style="margin-top:6px">מוצג המחזור האחרון של מלכת האם שנבחרה</div>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);
       card.onclick=()=>openNurse(id);
       grid.appendChild(card);
     });
@@ -395,7 +473,7 @@ function render(){
   }
 }
 function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
-function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
+function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}${syncBadgeHtml(x)}${x.syncStatus==='error'?` <button class="sync-retry" onclick="event.stopPropagation();retrySync('${x.recordId}')">נסה שוב</button>`:''}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
 function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
 function addDaysToDate(dateStr, days){
   if(!dateStr)return '';
@@ -461,28 +539,7 @@ document.getElementById('cycleForm').onsubmit=e=>{
 
   const rec={recordId:(existing&&existing.recordId)?existing.recordId:makeRecordId(),mother:document.getElementById('mother').value.trim(),location:document.getElementById('location').value.trim(),dateIn:dateInVal,cupsMounted:mounted,cupsDay7:day7,dateOut:dateOutVal,cupsFinal:finalCount,notes:document.getElementById('notes').value.trim()};if(idx==='')data[id].push(rec);else data[id][Number(idx)]=rec;
 save();
-{
-  const payload={
-    action:(idx==='')?'create':'update',
-    recordId:rec.recordId,
-    nurse:id,
-    mother:rec.mother,
-    dateIn:rec.dateIn,
-    cupsMounted:rec.cupsMounted,
-    cupsDay7:rec.cupsDay7,
-    dateOut:rec.dateOut,
-    cupsFinal:rec.cupsFinal,
-    successPercent:rec.successPercent,
-    notes:rec.notes,
-    location:rec.location
-  };
-  fetch(CLOUD_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload),
-    mode:'no-cors'
-  }).catch(()=>{});
-}
+sendRecordToCloud(id,rec,(idx==='')?'create':'update');
 formDialog.close();render();openNurse(id)}
 document.getElementById('search').oninput=render;
 document.getElementById('motherFilter').onchange=render;

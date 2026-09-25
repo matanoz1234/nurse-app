@@ -1,0 +1,20 @@
+{
+  "name": "מעקב אומנות – גידול מלכות",
+  "short_name": "מעקב אומנות",
+  "start_url": "./?v=23",
+  "display": "standalone",
+  "background_color": "#fffaf0",
+  "theme_color": "#d79b22",
+  "icons": [
+    {
+      "src": "queenbee-v23-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "queenbee-v23-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
