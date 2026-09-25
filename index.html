@@ -39,8 +39,16 @@ button.danger{background:var(--danger)}
 .today-box{border-radius:14px;padding:10px;text-align:center;border:1px solid var(--line);background:#fafafa;cursor:pointer}
 .today-box b{display:block;font-size:22px;margin-bottom:2px}.today-box span{font-size:12px;color:var(--muted)}
 .today-box.day7{background:#eef6ff;border-color:#b7d5f4}.today-box.out{background:#fff8df;border-color:#e7c35b}.today-box.late{background:#fff0f0;border-color:#e5aaaa}.today-box.active{background:#eef9f1;border-color:#a9d7b5}
-.today-list{margin-top:10px;font-size:13px;line-height:1.8;color:var(--muted)}
-.today-item{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 8px;margin:3px;cursor:pointer;color:var(--ink)}
+.today-list{margin-top:12px;font-size:13px;line-height:1.8;color:var(--muted)}
+.today-section{margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.today-section:first-child{border-top:0;padding-top:0}
+.today-section-title{font-weight:800;color:var(--ink);margin-bottom:6px}
+.today-item{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px 9px;margin:3px;cursor:pointer;color:var(--ink);font-weight:700}
+.active-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:8px}
+.active-item{background:#f7fff9;border:1px solid #a9d7b5;border-radius:12px;padding:9px 10px;cursor:pointer;color:var(--ink)}
+.active-item b{display:block;font-size:15px;margin-bottom:2px}.active-item span{font-size:11px;color:var(--muted)}
+.no-tasks{background:#f8fbf8;border:1px dashed #b7d4bd;border-radius:12px;padding:9px 10px;color:#3f6b49;font-weight:700}
+@media(max-width:650px){.active-list{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){.today-summary{grid-template-columns:1fr 1fr}}
 
 .performance-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px #0000000d}
@@ -89,11 +97,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v19.webmanifest?v=19">
+<link rel="manifest" href="manifest-v20.webmanifest?v=20">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v19-192.png?v=19">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v19-512.png?v=19">
-<link rel="apple-touch-icon" href="queenbee-v19-192.png?v=19">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v20-192.png?v=20">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v20-512.png?v=20">
+<link rel="apple-touch-icon" href="queenbee-v20-192.png?v=20">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -110,17 +118,17 @@ body.locked header,body.locked .grid,body.locked footer{
 </div>
 <header>
   <h1>🐝 מעקב אומנות – גידול מלכות</h1>
-  <p>25 אומנות · משימות היום · סיכום ביצועים · היסטוריה · עריכה · סריקת QR</p>
+  <p>25 אומנות · מה צריך לעשות היום · אומנות פעילות · סיכום ביצועים · היסטוריה · QR</p>
 </header>
 
 <main>
   <section class="today-panel">
-    <h2>📅 מה צריך לעשות היום</h2>
+    <h2>📅 תמונת מצב להיום</h2>
     <div class="today-summary">
-      <div class="today-box day7" id="todayDay7Box"><b id="todayDay7Count">0</b><span>בדיקת יום 7 היום</span></div>
-      <div class="today-box out" id="todayOutBox"><b id="todayOutCount">0</b><span>להוציא היום</span></div>
-      <div class="today-box late" id="todayLateBox"><b id="todayLateCount">0</b><span>באיחור</span></div>
-      <div class="today-box active" id="todayActiveBox"><b id="todayActiveCount">0</b><span>אומנות פעילות</span></div>
+      <div class="today-box day7"><b id="todayDay7Count">0</b><span>בדיקת יום 7 היום</span></div>
+      <div class="today-box out"><b id="todayOutCount">0</b><span>להוציא היום</span></div>
+      <div class="today-box late"><b id="todayLateCount">0</b><span>באיחור</span></div>
+      <div class="today-box active"><b id="todayActiveCount">0</b><span>אומנות פעילות כרגע</span></div>
     </div>
     <div id="todayList" class="today-list"></div>
   </section>
@@ -240,19 +248,31 @@ function cycleStatus(x){
 }
 function statusHtml(x){const st=cycleStatus(x);return `<span class="status-pill ${st.cls}">${st.text}</span>`;}
 function addDaysISO(dateStr,days){if(!dateStr)return'';const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
+function daysUntil(dateStr){
+  if(!dateStr)return null;
+  const now=new Date();
+  const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const target=new Date(y,m-1,d);
+  return Math.round((target-today)/86400000);
+}
 function getTodayTasks(){
-  const today=new Date().toISOString().slice(0,10);
+  const now=new Date();
+  const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const day7=[],out=[],late=[],active=[];
   Object.keys(data).forEach(id=>{
     const arr=data[id]||[]; if(!arr.length)return;
     const x=arr[arr.length-1];
     const st=cycleStatus(x);
-    if(st.text==='פעילה') active.push(id);
-    if(st.text==='להוציא היום') out.push(id);
-    if(st.text==='באיחור') late.push(id);
-    if(x.dateIn && addDaysISO(x.dateIn,7)===today && (x.cupsDay7===''||x.cupsDay7==null)) day7.push(id);
+    if(st.text==='פעילה') active.push({id,x});
+    if(st.text==='להוציא היום') out.push({id,x});
+    if(st.text==='באיחור') late.push({id,x});
+    if(x.dateIn && addDaysISO(x.dateIn,7)===today && (x.cupsDay7===''||x.cupsDay7==null)) day7.push({id,x});
   });
   return {day7,out,late,active};
+}
+function taskPills(items){
+  return items.map(({id})=>`<span class="today-item" onclick="openNurse('${id}')">${id}</span>`).join('');
 }
 function renderToday(){
   const t=getTodayTasks();
@@ -260,11 +280,31 @@ function renderToday(){
   document.getElementById('todayOutCount').textContent=t.out.length;
   document.getElementById('todayLateCount').textContent=t.late.length;
   document.getElementById('todayActiveCount').textContent=t.active.length;
-  const parts=[];
-  if(t.day7.length)parts.push('<b>יום 7:</b> '+t.day7.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
-  if(t.out.length)parts.push('<b>להוציא היום:</b> '+t.out.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
-  if(t.late.length)parts.push('<b>באיחור:</b> '+t.late.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
-  document.getElementById('todayList').innerHTML=parts.length?parts.join('<br>'):'אין משימות מיוחדות להיום.';
+
+  const actionParts=[];
+  if(t.day7.length) actionParts.push(`<div><b>בדיקת יום 7:</b> ${taskPills(t.day7)}</div>`);
+  if(t.out.length) actionParts.push(`<div><b>להוציא היום:</b> ${taskPills(t.out)}</div>`);
+  if(t.late.length) actionParts.push(`<div><b>באיחור:</b> ${taskPills(t.late)}</div>`);
+
+  const actionsHtml = actionParts.length
+    ? actionParts.join('')
+    : '<div class="no-tasks">✓ אין כרגע פעולה דחופה להיום</div>';
+
+  const activeHtml = t.active.length
+    ? `<div class="active-list">${t.active.map(({id,x})=>{
+        const d=daysUntil(x.dateOut);
+        let when='';
+        if(d===null) when='תאריך הוצאה לא הוגדר';
+        else if(d===1) when='הוצאה מחר';
+        else if(d>1) when=`הוצאה בעוד ${d} ימים`;
+        else when=`הוצאה: ${fmtDate(x.dateOut)}`;
+        return `<div class="active-item" onclick="openNurse('${id}')"><b>${id} · ${esc(x.mother||'ללא מלכת אם')}</b><span>${when}</span></div>`;
+      }).join('')}</div>`
+    : '<div class="empty">אין כרגע אומנות פעילות.</div>';
+
+  document.getElementById('todayList').innerHTML =
+    `<div class="today-section"><div class="today-section-title">⚠️ דורש פעולה</div>${actionsHtml}</div>` +
+    `<div class="today-section"><div class="today-section-title">🟢 אומנות פעילות כרגע</div>${activeHtml}</div>`;
 }
 function getPerformanceSummary(){
   let completed=0,totalMounted=0,totalFinal=0;
