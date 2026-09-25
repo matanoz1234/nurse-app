@@ -12,9 +12,9 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;ba
 header{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,#5c4315,#d79b22);color:#fff;padding:16px;box-shadow:0 2px 10px #0002}
 header h1{font-size:22px;margin:0 0 4px} header p{margin:0;opacity:.9;font-size:13px}
 main{max-width:980px;margin:auto;padding:16px}
-.toolbar{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;margin-bottom:14px}
-input,button,textarea{font:inherit}
-input,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.toolbar{display:grid;grid-template-columns:minmax(190px,1fr) minmax(190px,1fr) auto auto auto auto;gap:8px;margin-bottom:14px}
+input,button,textarea,select{font:inherit}
+input,textarea,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
 button{border:0;border-radius:12px;padding:11px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
 button.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
 button.danger{background:var(--danger)}
@@ -74,7 +74,7 @@ dialog::backdrop{background:#0007}
 .scanner-msg{font-size:13px;color:var(--muted);margin:8px 0;line-height:1.6}
 footer{padding:20px 16px;color:var(--muted);font-size:12px;text-align:center}
 canvas{display:none}
-@media(max-width:650px){.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}.formgrid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr 1fr}}
+@media(max-width:650px){.toolbar{grid-template-columns:1fr 1fr}.toolbar input,.toolbar select{grid-column:1/-1}.formgrid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr 1fr}}
 
 #lockScreen{
   position:fixed;inset:0;z-index:9999;background:#fffaf0;
@@ -97,11 +97,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v20.webmanifest?v=20">
+<link rel="manifest" href="manifest-v21.webmanifest?v=21">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v20-192.png?v=20">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v20-512.png?v=20">
-<link rel="apple-touch-icon" href="queenbee-v20-192.png?v=20">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v21-192.png?v=21">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v21-512.png?v=21">
+<link rel="apple-touch-icon" href="queenbee-v21-192.png?v=21">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -118,7 +118,7 @@ body.locked header,body.locked .grid,body.locked footer{
 </div>
 <header>
   <h1>🐝 מעקב אומנות – גידול מלכות</h1>
-  <p>25 אומנות · מה צריך לעשות היום · אומנות פעילות · סיכום ביצועים · היסטוריה · QR</p>
+  <p>25 אומנות · מה צריך לעשות היום · סינון לפי מלכת אם · סיכום ביצועים · היסטוריה · QR</p>
 </header>
 
 <main>
@@ -146,6 +146,9 @@ body.locked header,body.locked .grid,body.locked footer{
   </section>
   <div class="toolbar">
     <input id="search" placeholder="חיפוש אומנת, למשל א-7">
+    <select id="motherFilter" aria-label="סינון לפי מלכת אם">
+      <option value="">👑 כל מלכות האם</option>
+    </select>
     <button id="scanBtn">📷 סריקת QR</button>
     <button id="exportBtn" class="secondary">ייצוא CSV</button>
     <button id="backupBtn" class="secondary">גיבוי</button>
@@ -349,7 +352,42 @@ function renderPerformance(){
   document.getElementById('perfBestNurse').textContent=p.bestNurse.avg==null?'—':p.bestNurse.name+' · '+p.bestNurse.avg.toFixed(1)+'%';
   document.getElementById('perfBestMother').textContent=p.bestMother.avg==null?'—':p.bestMother.name+' · '+p.bestMother.avg.toFixed(1)+'%';
 }
-function render(){renderToday();renderPerformance();const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
+function updateMotherFilterOptions(){
+  const sel=document.getElementById('motherFilter');
+  if(!sel)return;
+  const current=sel.value;
+  const names=[...new Set(Object.values(data).flat().map(x=>(x.mother||'').trim()).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,'he',{numeric:true,sensitivity:'base'}));
+  sel.innerHTML='<option value="">👑 כל מלכות האם</option>'+names.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
+  if(names.includes(current))sel.value=current;
+}
+function render(){
+  renderToday();
+  renderPerformance();
+  updateMotherFilterOptions();
+  const q=document.getElementById('search').value.trim();
+  const mother=document.getElementById('motherFilter').value.trim();
+  grid.innerHTML='';
+  Object.keys(data)
+    .sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1]))
+    .filter(id=>id.includes(q))
+    .forEach(id=>{
+      const arr=data[id];
+      const relevant=mother?arr.filter(x=>(x.mother||'').trim()===mother):arr;
+      if(mother && relevant.length===0)return;
+      const last=relevant[relevant.length-1];
+      const fp=last?pct(last.cupsMounted,last.cupsFinal):null;
+      const card=document.createElement('div');
+      const st=last?cycleStatus(last):null;
+      card.className='card '+(st?st.cardCls:'card-empty');
+      card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}${mother&&arr.length>relevant.length?`<div class="stat" style="margin-top:6px">מוצג המחזור האחרון של מלכת האם שנבחרה</div>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);
+      card.onclick=()=>openNurse(id);
+      grid.appendChild(card);
+    });
+  if(mother && !grid.children.length){
+    grid.innerHTML='<div class="empty" style="grid-column:1/-1;background:#fff;border:1px dashed var(--line);border-radius:14px;padding:18px;text-align:center">לא נמצאו מחזורים למלכת האם שנבחרה.</div>';
+  }
+}
 function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
 function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
 function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
@@ -441,6 +479,7 @@ save();
 }
 formDialog.close();render();openNurse(id)}
 document.getElementById('search').oninput=render;
+document.getElementById('motherFilter').onchange=render;
 
 document.getElementById('scanBtn').onclick=startScanner;
 
