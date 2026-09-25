@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מעקב אומנות – גידול מלכות</title>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<style>
+:root{--bg:#fffaf0;--card:#fff;--ink:#2d2417;--muted:#7a6a54;--accent:#d79b22;--line:#eadfc8;--danger:#a64032}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--ink)}
+header{position:sticky;top:0;z-index:5;background:linear-gradient(135deg,#5c4315,#d79b22);color:#fff;padding:16px;box-shadow:0 2px 10px #0002}
+header h1{font-size:22px;margin:0 0 4px} header p{margin:0;opacity:.9;font-size:13px}
+main{max-width:980px;margin:auto;padding:16px}
+.toolbar{display:grid;grid-template-columns:1fr auto auto auto auto;gap:8px;margin-bottom:14px}
+input,button,textarea{font:inherit}
+input,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:#fff}
+button{border:0;border-radius:12px;padding:11px 14px;background:var(--accent);color:#fff;font-weight:700;cursor:pointer}
+button.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+button.danger{background:var(--danger)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 2px 8px #0000000d;cursor:pointer}
+.card h3{margin:0 0 8px;font-size:20px}.stat{font-size:13px;color:var(--muted);line-height:1.7}
+.pill{display:inline-block;background:#fff3cf;border:1px solid #efd995;border-radius:999px;padding:3px 8px;font-size:12px;margin-top:6px}
+.status-pill{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800;margin-top:6px;margin-inline-start:5px}
+.status-active{background:#e9f7ef;border:1px solid #9fd5af;color:#236b38}
+.status-due{background:#fff1e8;border:1px solid #efb188;color:#9b4519}
+.status-done{background:#eef1f4;border:1px solid #c5cbd1;color:#4b5563}
+.empty{color:var(--muted);font-size:13px}
+dialog{border:0;border-radius:18px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 20px 60px #0005}
+dialog::backdrop{background:#0007}
+.dlg-head{padding:16px 18px;background:#fff4d5;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.dlg-head h2{margin:0;font-size:20px}.dlg-body{padding:16px 18px;max-height:76vh;overflow:auto}.close{background:transparent;color:var(--ink);padding:5px 8px;font-size:22px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}.field label{display:block;font-size:13px;font-weight:700;margin-bottom:5px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.history{margin-top:18px}.entry{border-top:1px solid var(--line);padding:12px 0}.entry:first-child{border-top:0}.entry strong{display:block;margin-bottom:5px}
+.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}.metric{background:#faf6ec;border-radius:10px;padding:8px;text-align:center}.metric b{display:block;font-size:18px}.metric span{font-size:11px;color:var(--muted)}
+.scan-wrap{position:relative;border-radius:14px;overflow:hidden;background:#111}
+#video{width:100%;display:block;min-height:260px;object-fit:cover}
+.scan-frame{position:absolute;inset:18% 12%;border:3px solid #fff;border-radius:18px;box-shadow:0 0 0 9999px #0005;pointer-events:none}
+.scanner-msg{font-size:13px;color:var(--muted);margin:8px 0;line-height:1.6}
+footer{padding:20px 16px;color:var(--muted);font-size:12px;text-align:center}
+canvas{display:none}
+@media(max-width:650px){.toolbar{grid-template-columns:1fr 1fr}.toolbar input{grid-column:1/-1}.formgrid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr 1fr 1fr}}
+
+#lockScreen{
+  position:fixed;inset:0;z-index:9999;background:#fffaf0;
+  display:flex;align-items:center;justify-content:center;padding:20px;
+}
+#lockCard{
+  width:min(360px,94vw);background:#fff;border:1px solid #ead9ad;
+  border-radius:18px;padding:24px;box-shadow:0 12px 40px #0002;text-align:center;
+}
+#lockCard h2{margin:0 0 8px;font-size:24px}
+#lockCard p{color:#666;margin:0 0 16px}
+#pinInput{
+  width:100%;text-align:center;font-size:28px;letter-spacing:8px;
+  padding:12px;border:1px solid #ccc;border-radius:12px;margin-bottom:10px;
+}
+#pinError{min-height:20px;color:#b42318;font-size:14px;margin-bottom:8px}
+#logoutBtn{margin-right:auto}
+body.locked header,body.locked .grid,body.locked footer{
+  filter:blur(2px);pointer-events:none;user-select:none
+}
+</style>
+
+<link rel="manifest" href="manifest-v16.webmanifest?v=16">
+<meta name="theme-color" content="#d79b22">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v16-192.png?v=16">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v16-512.png?v=16">
+<link rel="apple-touch-icon" href="queenbee-v16-192.png?v=16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+</head>
+<body class="locked">
+<div id="lockScreen">
+  <div id="lockCard">
+    <h2>מעקב אומנות</h2>
+    <p>הזן קוד PIN כדי להיכנס</p>
+    <input id="pinInput" type="password" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="••••">
+    <div id="pinError"></div>
+    <button class="primary" id="pinEnterBtn" type="button">כניסה</button>
+  </div>
+</div>
+<header>
+  <h1>🐝 מעקב אומנות – גידול מלכות</h1>
+  <p>25 אומנות · היסטוריה · עריכה · סריקת QR</p>
+</header>
+
+<main>
+  <div class="toolbar">
+    <input id="search" placeholder="חיפוש אומנת, למשל א-7">
+    <button id="scanBtn">📷 סריקת QR</button>
+    <button id="exportBtn" class="secondary">ייצוא CSV</button>
+    <button id="backupBtn" class="secondary">גיבוי</button>
+    <button id="restoreBtn" class="secondary">שחזור</button>
+    <input id="restoreFile" type="file" accept="application/json,.json" style="display:none">
+  </div>
+  <div id="grid" class="grid"></div>
+</main>
+
+<dialog id="nurseDialog">
+  <div class="dlg-head">
+    <h2 id="dlgTitle"></h2>
+    <button class="close" onclick="nurseDialog.close()">×</button>
+  </div>
+  <div class="dlg-body">
+    <button id="newCycleBtn">+ הוסף מחזור חדש</button>
+    <div id="history" class="history"></div>
+  </div>
+</dialog>
+
+<dialog id="formDialog">
+  <div class="dlg-head">
+    <h2 id="formTitle">מחזור חדש</h2>
+    <button class="close" onclick="formDialog.close()">×</button>
+  </div>
+  <div class="dlg-body">
+    <form id="cycleForm">
+      <input type="hidden" id="nurseId">
+      <input type="hidden" id="editIndex">
+      <div class="formgrid">
+        <div class="field"><label>מלכת אם</label><input id="mother" placeholder="למשל M-7" required></div>
+        <div class="field"><label>מיקום האומנת</label><input id="location" placeholder="למשל שורה 2 ליד המחסן"></div>
+        <div class="field"><label>תאריך הכנסה</label><input id="dateIn" type="date" required></div>
+        <div class="field"><label>מספר גביעים שהורכבו</label><input id="cupsMounted" type="number" min="0" step="1" required></div>
+        <div class="field"><label>מספר גביעים ביום 7</label><input id="cupsDay7" type="number" min="0" step="1"></div>
+        <div class="field"><label>תאריך הוצאה</label><input id="dateOut" type="date"></div>
+        <div class="field"><label>מספר גביעים שיצאו בפועל</label><input id="cupsFinal" type="number" min="0" step="1"></div>
+        <div class="field full"><label>הערה</label><textarea id="notes" rows="3"></textarea></div>
+      </div>
+      <div class="actions"><button type="submit">שמור</button><button type="button" class="secondary" onclick="formDialog.close()">ביטול</button></div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="scanDialog">
+  <div class="dlg-head">
+    <h2>סריקת QR</h2>
+    <button class="close" onclick="stopScanner()">×</button>
+  </div>
+  <div class="dlg-body">
+    <div class="scan-wrap">
+      <video id="video" playsinline muted></video>
+      <div class="scan-frame"></div>
+    </div>
+    <canvas id="scanCanvas"></canvas>
+    <div id="scannerMsg" class="scanner-msg">כוון את ה-QR לתוך המסגרת הלבנה.</div>
+    <div class="field" style="margin-top:12px">
+      <label>פתיחה ידנית אם צריך</label>
+      <input id="manualNurse" placeholder="למשל א-7">
+    </div>
+    <div class="actions">
+      <button type="button" onclick="openManualNurse()">פתח אומנת</button>
+    </div>
+  </div>
+</dialog>
+
+<footer>הנתונים נשמרים במכשיר ובמקביל נשלחים לגיבוי ב-Google Sheets.</footer>
+
+<script>
+const nurseDialog=document.getElementById('nurseDialog'),formDialog=document.getElementById('formDialog'),scanDialog=document.getElementById('scanDialog');
+const grid=document.getElementById('grid'),historyEl=document.getElementById('history');
+const storeKey='queen_nurse_cycles_v3';
+const APP_PIN='1973';
+const CLOUD_URL='https://script.google.com/macros/s/AKfycbyIiezP3GK-Yie9qHLp1-Vr8jh2-8fe5-hI5q4yP9jIXKzEMcriEwJnp7EVMypTc0xjow/exec'; // same key as previous version so data is preserved
+
+
+function successPercent(mounted, finalCount){
+  const a=parseFloat(mounted);
+  const b=parseFloat(finalCount);
+  if(!Number.isFinite(a) || a<=0 || !Number.isFinite(b)) return '';
+  return ((b/a)*100).toFixed(2);
+}
+
+function makeRecordId(){return 'rec-'+Date.now()+'-'+Math.random().toString(36).slice(2,10)};
+let data=JSON.parse(localStorage.getItem(storeKey)||'{}'),currentNurse=null,scannerStream=null,scanRAF=null,lastScanAt=0;
+for(let i=1;i<=25;i++){let id=`א-${i}`; if(!data[id])data[id]=[];} save();
+function save(){localStorage.setItem(storeKey,JSON.stringify(data))}
+function pct(a,b){if(!a||a<=0||b==null||b==='')return null;return Math.round((Number(b)/Number(a))*1000)/10}
+function esc(s=''){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function fmtDate(d){if(!d)return'—';const[y,m,day]=d.split('-');return`${day}/${m}/${y}`}
+function cycleStatus(x){
+  const hasFinal=x && x.cupsFinal!=='' && x.cupsFinal!==null && x.cupsFinal!==undefined;
+  if(hasFinal)return {text:'הסתיימה',cls:'status-done'};
+  if(!x || !x.dateOut)return {text:'פעילה',cls:'status-active'};
+  const now=new Date();
+  const today=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  if(x.dateOut<=today)return {text:'להוציא היום / באיחור',cls:'status-due'};
+  return {text:'פעילה',cls:'status-active'};
+}
+function statusHtml(x){const st=cycleStatus(x);return `<span class="status-pill ${st.cls}">${st.text}</span>`;}
+function render(){const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');card.className='card';card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
+function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
+function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
+function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
+function addDaysToDate(dateStr, days){
+  if(!dateStr)return '';
+  const [y,m,d]=dateStr.split('-').map(Number);
+  const dt=new Date(y,m-1,d);
+  dt.setDate(dt.getDate()+days);
+  const yy=dt.getFullYear();
+  const mm=String(dt.getMonth()+1).padStart(2,'0');
+  const dd=String(dt.getDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
+}
+function setAutomaticDateOut(){
+  const dateIn=document.getElementById('dateIn').value;
+  document.getElementById('dateOut').value=addDaysToDate(dateIn,10);
+}
+document.getElementById('dateIn').addEventListener('change',setAutomaticDateOut);
+document.getElementById('newCycleBtn').onclick=()=>{nurseDialog.close();resetForm();document.getElementById('nurseId').value=currentNurse;document.getElementById('formTitle').textContent=`מחזור חדש – ${currentNurse}`;document.getElementById('dateIn').value=new Date().toISOString().slice(0,10);setAutomaticDateOut();formDialog.showModal()}
+function editCycle(idx){const x=data[currentNurse][idx];nurseDialog.close();resetForm();document.getElementById('nurseId').value=currentNurse;document.getElementById('editIndex').value=idx;document.getElementById('formTitle').textContent=`עריכת מחזור – ${currentNurse}`;for(const[k,v]of Object.entries({mother:x.mother,location:x.location,dateIn:x.dateIn,cupsMounted:x.cupsMounted,cupsDay7:x.cupsDay7,dateOut:x.dateOut,cupsFinal:x.cupsFinal,notes:x.notes}))document.getElementById(k).value=v??'';formDialog.showModal()}
+function deleteCycle(idx){
+  if(confirm('האם אתה בטוח שברצונך למחוק את המחזור?\n\nהמחיקה תמחק את הרשומה גם מהאפליקציה וגם מ-Google Sheets.')){
+    const rec=data[currentNurse][idx];
+    if(rec && rec.recordId){
+      fetch(CLOUD_URL,{
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body:JSON.stringify({
+          action:'delete',
+          recordId:rec.recordId,
+          nurse:currentNurse
+        }),
+        mode:'no-cors'
+      }).catch(()=>{});
+    }
+    data[currentNurse].splice(idx,1);
+    save();
+    renderHistory();
+    render();
+  }
+}
+document.getElementById('cycleForm').onsubmit=e=>{
+  e.preventDefault();
+  const id=document.getElementById('nurseId').value;
+  const idx=document.getElementById('editIndex').value;
+  const existing=(idx==='')?null:data[id][Number(idx)];
+
+  const mountedVal=document.getElementById('cupsMounted').value;
+  const day7Val=document.getElementById('cupsDay7').value;
+  const finalVal=document.getElementById('cupsFinal').value;
+  const dateInVal=document.getElementById('dateIn').value;
+  const dateOutVal=document.getElementById('dateOut').value;
+
+  const mounted=mountedVal===''?NaN:Number(mountedVal);
+  const day7=day7Val===''?'':Number(day7Val);
+  const finalCount=finalVal===''?'':Number(finalVal);
+
+  if(!Number.isFinite(mounted) || mounted<0){alert('מספר הגביעים שהורכבו חייב להיות מספר תקין ולא שלילי.');return;}
+  if(day7!=='' && (!Number.isFinite(day7) || day7<0)){alert('מספר הגביעים ביום 7 חייב להיות מספר תקין ולא שלילי.');return;}
+  if(finalCount!=='' && (!Number.isFinite(finalCount) || finalCount<0)){alert('מספר הגביעים שיצאו בפועל חייב להיות מספר תקין ולא שלילי.');return;}
+  if(day7!=='' && day7>mounted){alert('לא ניתן להזין ביום 7 יותר גביעים ממספר הגביעים שהורכבו.');return;}
+  if(finalCount!=='' && finalCount>mounted){alert('לא ניתן להזין יותר גביעים שיצאו בפועל ממספר הגביעים שהורכבו.');return;}
+  if(day7!=='' && finalCount!=='' && finalCount>day7){alert('לא ניתן להזין יותר גביעים שיצאו בפועל ממספר הגביעים שהיו ביום 7.');return;}
+  if(dateInVal && dateOutVal && dateOutVal<dateInVal){alert('תאריך ההוצאה לא יכול להיות לפני תאריך ההכנסה.');return;}
+
+  const rec={recordId:(existing&&existing.recordId)?existing.recordId:makeRecordId(),mother:document.getElementById('mother').value.trim(),location:document.getElementById('location').value.trim(),dateIn:dateInVal,cupsMounted:mounted,cupsDay7:day7,dateOut:dateOutVal,cupsFinal:finalCount,notes:document.getElementById('notes').value.trim()};if(idx==='')data[id].push(rec);else data[id][Number(idx)]=rec;
+save();
+{
+  const payload={
+    action:(idx==='')?'create':'update',
+    recordId:rec.recordId,
+    nurse:id,
+    mother:rec.mother,
+    dateIn:rec.dateIn,
+    cupsMounted:rec.cupsMounted,
+    cupsDay7:rec.cupsDay7,
+    dateOut:rec.dateOut,
+    cupsFinal:rec.cupsFinal,
+    successPercent:rec.successPercent,
+    notes:rec.notes,
+    location:rec.location
+  };
+  fetch(CLOUD_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    mode:'no-cors'
+  }).catch(()=>{});
+}
+formDialog.close();render();openNurse(id)}
+document.getElementById('search').oninput=render;
+
+document.getElementById('scanBtn').onclick=startScanner;
+
+async function startScanner(){
+  scanDialog.showModal();
+  const msg=document.getElementById('scannerMsg');
+  msg.textContent='פותח מצלמה...';
+  try{
+    scannerStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},
+      audio:false
+    });
+    const video=document.getElementById('video');
+    video.srcObject=scannerStream;
+    await video.play();
+    msg.textContent='כוון את ה-QR לתוך המסגרת הלבנה.';
+    scanLoop();
+  }catch(e){
+    msg.textContent='לא הצלחתי לפתוח מצלמה: '+(e.name||'שגיאה');
+  }
+}
+
+function scanLoop(ts){
+  if(!scannerStream)return;
+  const video=document.getElementById('video');
+  const canvas=document.getElementById('scanCanvas');
+  const ctx=canvas.getContext('2d',{willReadFrequently:true});
+
+  if(video.readyState===video.HAVE_ENOUGH_DATA && (!lastScanAt || ts-lastScanAt>180)){
+    lastScanAt=ts;
+    canvas.width=video.videoWidth;
+    canvas.height=video.videoHeight;
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+    const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
+
+    if(typeof jsQR==='function'){
+      const code=jsQR(imageData.data,imageData.width,imageData.height,{inversionAttempts:'attemptBoth'});
+      if(code && code.data){
+        handleScannedValue(code.data);
+        return;
+      }
+    }else{
+      document.getElementById('scannerMsg').textContent='מפענח ה-QR לא נטען. בדוק חיבור לאינטרנט ורענן.';
+    }
+  }
+  scanRAF=requestAnimationFrame(scanLoop);
+}
+
+function stopScanner(){
+  if(scanRAF){cancelAnimationFrame(scanRAF);scanRAF=null}
+  if(scannerStream){scannerStream.getTracks().forEach(t=>t.stop());scannerStream=null}
+  if(scanDialog.open)scanDialog.close();
+}
+
+function extractNurse(value){
+  try{
+    const u=new URL(value);
+    const vals=[...u.searchParams.values()].map(v=>decodeURIComponent(v));
+    const found=vals.find(v=>/^א-\d+$/.test(v));
+    if(found)return found;
+  }catch(e){}
+  let s='';
+  try{s=decodeURIComponent(String(value))}catch(e){s=String(value)}
+  const m=s.match(/א-\d+/);
+  return m?m[0]:null;
+}
+
+function handleScannedValue(value){
+  const id=extractNurse(value);
+  if(id&&data[id]){
+    if(navigator.vibrate)navigator.vibrate(120);
+    stopScanner();
+    openNurse(id);
+  }else{
+    document.getElementById('scannerMsg').textContent='ה-QR זוהה, אבל לא נמצא בו מספר אומנת א-1 עד א-25.';
+  }
+}
+
+function openManualNurse(){
+  const id=document.getElementById('manualNurse').value.trim();
+  if(data[id]){stopScanner();openNurse(id)}
+  else alert('מספר אומנת לא מוכר');
+}
+
+
+document.getElementById('restoreBtn').onclick=()=>{
+  document.getElementById('restoreFile').click();
+};
+
+document.getElementById('restoreFile').addEventListener('change', async (e)=>{
+  const file=e.target.files && e.target.files[0];
+  if(!file) return;
+
+  try{
+    const text=await file.text();
+    const restored=JSON.parse(text);
+
+    if(!restored || typeof restored!=='object' || Array.isArray(restored)){
+      alert('קובץ הגיבוי אינו תקין.');
+      e.target.value='';
+      return;
+    }
+
+    let valid=true;
+    for(let i=1;i<=25;i++){
+      const id='א-'+i;
+      if(!(id in restored) || !Array.isArray(restored[id])){
+        valid=false;
+        break;
+      }
+    }
+
+    if(!valid){
+      alert('זה לא נראה כמו קובץ גיבוי תקין של אפליקציית האומנות.');
+      e.target.value='';
+      return;
+    }
+
+    const ok=confirm(
+      'האם אתה בטוח שברצונך לשחזר את הגיבוי?\n\n' +
+      'השחזור יחליף את הנתונים המקומיים באפליקציה בנתונים שבקובץ.\n' +
+      'Google Sheets לא יימחק ולא ישתנה.'
+    );
+
+    if(!ok){
+      e.target.value='';
+      return;
+    }
+
+    data=restored;
+    save();
+    render();
+
+    if(currentNurse && data[currentNurse]){
+      renderHistory();
+    }
+
+    alert('השחזור הושלם בהצלחה.');
+  }catch(err){
+    alert('לא ניתן לקרוא את קובץ הגיבוי. ודא שבחרת קובץ JSON שנוצר מהאפליקציה.');
+  }
+
+  e.target.value='';
+});
+
+document.getElementById('backupBtn').onclick=()=>{const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='גיבוי_אומנות.json';a.click();URL.revokeObjectURL(a.href)}
+document.getElementById('exportBtn').onclick=()=>{const rows=[['אומנת','מלכת אם','מיקום האומנת','תאריך הכנסה','הורכבו','יום 7','% יום 7','תאריך הוצאה','יצאו בפועל','% סופי','הערה']];Object.entries(data).forEach(([id,arr])=>arr.forEach(x=>rows.push([id,x.mother,x.location||'',x.dateIn,x.cupsMounted,x.cupsDay7,pct(x.cupsMounted,x.cupsDay7)??'',x.dateOut,x.cupsFinal,pct(x.cupsMounted,x.cupsFinal)??'',x.notes])));const csv='\ufeff'+rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='מעקב_אומנות.csv';a.click();URL.revokeObjectURL(a.href)}
+
+const params=new URLSearchParams(location.search),deep=params.get('nurse');
+
+function unlockApp(){
+  const v=document.getElementById('pinInput').value.trim();
+  if(v===APP_PIN){
+    document.body.classList.remove('locked');
+    document.getElementById('lockScreen').style.display='none';
+    document.getElementById('pinError').textContent='';
+    document.getElementById('pinInput').value='';
+    sessionStorage.setItem('nurse_app_unlocked','1');
+  }else{
+    document.getElementById('pinError').textContent='קוד שגוי';
+    document.getElementById('pinInput').select();
+  }
+}
+function lockApp(){
+  sessionStorage.removeItem('nurse_app_unlocked');
+  document.body.classList.add('locked');
+  document.getElementById('lockScreen').style.display='flex';
+  setTimeout(()=>document.getElementById('pinInput').focus(),50);
+}
+document.getElementById('pinEnterBtn').addEventListener('click',unlockApp);
+document.getElementById('pinInput').addEventListener('keydown',e=>{
+  if(e.key==='Enter') unlockApp();
+});
+if(sessionStorage.getItem('nurse_app_unlocked')==='1'){
+  document.body.classList.remove('locked');
+  document.getElementById('lockScreen').style.display='none';
+}else{
+  setTimeout(()=>document.getElementById('pinInput').focus(),100);
+}
+render();if(deep&&data[deep])setTimeout(()=>openNurse(deep),150);
+</script>
+
+<script>
+(async()=>{
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (const r of regs) { try { await r.unregister(); } catch(e){} }
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    for (const k of keys) { try { await caches.delete(k); } catch(e){} }
+  }
+})();
+</script>
+
+</body>
+</html>
