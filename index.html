@@ -32,6 +32,16 @@ button.danger{background:var(--danger)}
 .card.card-late{border:2px solid #e5a3a3;background:#fff7f7}
 .card.card-done{border:2px solid #c5cbd1;background:#f8f9fa}
 .card.card-empty{opacity:.9}
+
+.today-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:14px;margin-bottom:14px;box-shadow:0 2px 8px #0000000d}
+.today-panel h2{margin:0 0 10px;font-size:18px}
+.today-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.today-box{border-radius:14px;padding:10px;text-align:center;border:1px solid var(--line);background:#fafafa;cursor:pointer}
+.today-box b{display:block;font-size:22px;margin-bottom:2px}.today-box span{font-size:12px;color:var(--muted)}
+.today-box.day7{background:#eef6ff;border-color:#b7d5f4}.today-box.out{background:#fff8df;border-color:#e7c35b}.today-box.late{background:#fff0f0;border-color:#e5aaaa}.today-box.active{background:#eef9f1;border-color:#a9d7b5}
+.today-list{margin-top:10px;font-size:13px;line-height:1.8;color:var(--muted)}
+.today-item{display:inline-block;background:#fff;border:1px solid var(--line);border-radius:999px;padding:3px 8px;margin:3px;cursor:pointer;color:var(--ink)}
+@media(max-width:650px){.today-summary{grid-template-columns:1fr 1fr}}
 .empty{color:var(--muted);font-size:13px}
 dialog{border:0;border-radius:18px;padding:0;max-width:680px;width:min(94vw,680px);box-shadow:0 20px 60px #0005}
 dialog::backdrop{background:#0007}
@@ -70,11 +80,11 @@ body.locked header,body.locked .grid,body.locked footer{
 }
 </style>
 
-<link rel="manifest" href="manifest-v17.webmanifest?v=17">
+<link rel="manifest" href="manifest-v18.webmanifest?v=18">
 <meta name="theme-color" content="#d79b22">
-<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v17-192.png?v=17">
-<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v17-512.png?v=17">
-<link rel="apple-touch-icon" href="queenbee-v17-192.png?v=17">
+<link rel="icon" type="image/png" sizes="192x192" href="queenbee-v18-192.png?v=18">
+<link rel="icon" type="image/png" sizes="512x512" href="queenbee-v18-512.png?v=18">
+<link rel="apple-touch-icon" href="queenbee-v18-192.png?v=18">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 
@@ -91,10 +101,20 @@ body.locked header,body.locked .grid,body.locked footer{
 </div>
 <header>
   <h1>🐝 מעקב אומנות – גידול מלכות</h1>
-  <p>25 אומנות · היסטוריה · עריכה · סריקת QR</p>
+  <p>25 אומנות · משימות היום · היסטוריה · עריכה · סריקת QR</p>
 </header>
 
 <main>
+  <section class="today-panel">
+    <h2>📅 מה צריך לעשות היום</h2>
+    <div class="today-summary">
+      <div class="today-box day7" id="todayDay7Box"><b id="todayDay7Count">0</b><span>בדיקת יום 7 היום</span></div>
+      <div class="today-box out" id="todayOutBox"><b id="todayOutCount">0</b><span>להוציא היום</span></div>
+      <div class="today-box late" id="todayLateBox"><b id="todayLateCount">0</b><span>באיחור</span></div>
+      <div class="today-box active" id="todayActiveBox"><b id="todayActiveCount">0</b><span>אומנות פעילות</span></div>
+    </div>
+    <div id="todayList" class="today-list"></div>
+  </section>
   <div class="toolbar">
     <input id="search" placeholder="חיפוש אומנת, למשל א-7">
     <button id="scanBtn">📷 סריקת QR</button>
@@ -198,7 +218,34 @@ function cycleStatus(x){
   return {text:'פעילה',cls:'status-active',cardCls:'card-active'};
 }
 function statusHtml(x){const st=cycleStatus(x);return `<span class="status-pill ${st.cls}">${st.text}</span>`;}
-function render(){const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
+function addDaysISO(dateStr,days){if(!dateStr)return'';const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+days);return d.toISOString().slice(0,10)}
+function getTodayTasks(){
+  const today=new Date().toISOString().slice(0,10);
+  const day7=[],out=[],late=[],active=[];
+  Object.keys(data).forEach(id=>{
+    const arr=data[id]||[]; if(!arr.length)return;
+    const x=arr[arr.length-1];
+    const st=cycleStatus(x);
+    if(st.text==='פעילה') active.push(id);
+    if(st.text==='להוציא היום') out.push(id);
+    if(st.text==='באיחור') late.push(id);
+    if(x.dateIn && addDaysISO(x.dateIn,7)===today && (x.cupsDay7===''||x.cupsDay7==null)) day7.push(id);
+  });
+  return {day7,out,late,active};
+}
+function renderToday(){
+  const t=getTodayTasks();
+  document.getElementById('todayDay7Count').textContent=t.day7.length;
+  document.getElementById('todayOutCount').textContent=t.out.length;
+  document.getElementById('todayLateCount').textContent=t.late.length;
+  document.getElementById('todayActiveCount').textContent=t.active.length;
+  const parts=[];
+  if(t.day7.length)parts.push('<b>יום 7:</b> '+t.day7.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
+  if(t.out.length)parts.push('<b>להוציא היום:</b> '+t.out.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
+  if(t.late.length)parts.push('<b>באיחור:</b> '+t.late.map(id=>`<span class="today-item" onclick="openNurse(\'${id}\')">${id}</span>`).join(''));
+  document.getElementById('todayList').innerHTML=parts.length?parts.join('<br>'):'אין משימות מיוחדות להיום.';
+}
+function render(){renderToday();const q=document.getElementById('search').value.trim();grid.innerHTML='';Object.keys(data).sort((a,b)=>Number(a.split('-')[1])-Number(b.split('-')[1])).filter(id=>id.includes(q)).forEach(id=>{const arr=data[id],last=arr[arr.length-1],fp=last?pct(last.cupsMounted,last.cupsFinal):null;const card=document.createElement('div');const st=last?cycleStatus(last):null;card.className='card '+(st?st.cardCls:'card-empty');card.innerHTML=`<h3>${id}</h3>`+(last?`${statusHtml(last)}<div class="stat" style="margin-top:6px">מלכת אם: <b>${esc(last.mother)}</b><br>הכנסה: ${fmtDate(last.dateIn)}<br>הורכבו: ${last.cupsMounted} · יום 7: ${last.cupsDay7||'—'} · יצאו: ${last.cupsFinal||'—'}</div>${fp!==null?`<span class="pill">הצלחה ${fp}%</span>`:''}`:`<div class="empty">אין עדיין מחזורים</div>`);card.onclick=()=>openNurse(id);grid.appendChild(card)})}
 function openNurse(id){if(!data[id])return alert('מספר אומנת לא מוכר');currentNurse=id;document.getElementById('dlgTitle').textContent=`אומנת ${id}`;renderHistory();nurseDialog.showModal()}
 function renderHistory(){const arr=[...data[currentNurse]].reverse();historyEl.innerHTML=arr.length?arr.map((x,r)=>{const real=data[currentNurse].length-1-r,d7=pct(x.cupsMounted,x.cupsDay7),fin=pct(x.cupsMounted,x.cupsFinal);return`<div class="entry"><strong>${fmtDate(x.dateIn)} · מלכת אם ${esc(x.mother)}</strong>${statusHtml(x)}<div class="metrics"><div class="metric"><b>${x.cupsMounted}</b><span>הורכבו</span></div><div class="metric"><b>${x.cupsDay7||'—'}</b><span>יום 7 ${d7!==null?`(${d7}%)`:''}</span></div><div class="metric"><b>${x.cupsFinal||'—'}</b><span>יצאו ${fin!==null?`(${fin}%)`:''}</span></div></div><div class="stat" style="margin-top:7px">הוצאה: ${fmtDate(x.dateOut)}${x.location?` · מיקום: ${esc(x.location)}`:''}${x.notes?` · ${esc(x.notes)}`:''}</div><div class="actions"><button class="secondary" onclick="editCycle(${real})">✏️ ערוך</button><button class="danger" onclick="deleteCycle(${real})">מחק</button></div></div>`}).join(''):'<div class="empty">עדיין אין מחזורים לאומנת זו.</div>'}
 function resetForm(){document.getElementById('cycleForm').reset();document.getElementById('editIndex').value=''}
